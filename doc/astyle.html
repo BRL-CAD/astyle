@@ -60,7 +60,7 @@
 
     <button onclick="topFunction()" id="topBtn" title="Go to Contents"><b>Top</b></button>
 
-    <h1>Artistic Style 3.4.9</h1>
+    <h1>Artistic Style</h1>
 
     <h2>
         A Free, Fast, and Small Automatic Formatter<br />
@@ -111,7 +111,7 @@
         <a class="contents" href="#_indent=spaces">indent=spaces</a>
         <a class="contents" href="#_indent=tab">indent=tab</a>
         <a class="contents" href="#_indent=force-tab">indent=force-tab</a>
-        <a class="contents" href="#_indent=force-tab-x">--indent=force-tab-x</a>
+        <a class="contents" href="#_indent=force-tab-x">indent=force-tab-x</a>
     </p>
     <p class="contents1">
         <a  href="#_Brace_Modify_Options">Brace&nbsp;Modify&nbsp;Options</a></p>
@@ -139,7 +139,7 @@
         <a class="contents" href="#_indent-col1-comments">indent-col1-comments</a>
         <a class="contents" href="#_min-conditional-indent">min-conditional-indent</a>
         <a class="contents" href="#_max-continuation-indent">max-continuation-indent</a>
-        <a class="contents" href="#_lambda_indent">lambda-indent</a>
+        <a class="contents" href="#_indent_lambda">indent-lambda</a>
 
     </p>
     <p class="contents1">
@@ -149,6 +149,7 @@
         <a class="contents" href="#_break-blocks=all">break-blocks=all</a>
         <a class="contents" href="#_pad-oper">pad-oper</a>
         <a class="contents" href="#_pad-comma">pad-comma</a>
+        <a class="contents" href="#_pad-negation">pad-negation</a>
         <a class="contents" href="#_pad-paren">pad-paren</a>
         <a class="contents" href="#_pad-paren-out">pad-paren-out</a>
         <a class="contents" href="#_pad-first-paren-out">pad-first-paren-out</a>
@@ -157,6 +158,8 @@
         <a class="contents" href="#_unpad-paren">unpad-paren</a>
         <a class="contents" href="#_pad-empty-paren">pad-empty-paren</a>
         <a class="contents" href="#_pad-brackets">pad-brackets</a>
+        <a class="contents" href="#_pad-brackets-in">pad-brackets-in</a>
+        <a class="contents" href="#_pad-brackets-out">pad-brackets-out</a>
         <a class="contents" href="#_unpad-brackets">unpad-brackets</a>
         <a class="contents" href="#_delete-empty-lines">delete-empty-lines</a>
         <a class="contents" href="#_fill-empty-lines">fill-empty-lines</a>
@@ -400,7 +403,7 @@
     <h4>Redirection</h4>
 
     <p>
-        The < and > characters may be used to redirect the files into standard input (stdin) and out of standard output
+        The &lt; and &gt; characters may be used to redirect the files into standard input (stdin) and out of standard output
         (stdout) - don't forget them! With this option, only one file at a time can be formatted. Wildcards are not
         recognized, there are no console messages, and a backup is not created. On Windows, the output will always have
         Windows line ends. The options "stdin=" and "stdout=" can be used instead of redirection.</p>
@@ -414,7 +417,8 @@
         <pre>astyle --style=allman --stdin=<em>OriginalSourceFile</em> --stdout=<em>BeautifiedSourceFile</em>
 </pre>
     </div>
-    <div class="code">
+
+    <div class="code" style="margin-top:1em">
         <p class="code">
             The redirection option may be used to display the formatted file without updating:</p>
         <pre>astyle --style=allman &lt; <em>OriginalSourceFile</em> | less
@@ -1545,8 +1549,8 @@ fooFunction(barArg1,
 </pre>
     </div>
 
-<p id="_lambda_indent">
-    <code class="title">--lambda-indent</code><br />
+<p id="_indent_lambda">
+    <code class="title">--indent-lambda</code><br />
     This option improves indentation of C++ lambda functions. As it currently does not work well with complex lambda function bodies, this feature is not enabled by default.
 </p>
 
@@ -1671,6 +1675,41 @@ isBar = false;
     bar(a, b);
 </pre>
     </div>
+
+    <p>
+        &nbsp;</p>
+    <p id="_pad-negation">
+        <code class="title">--pad-negation</code><br />
+        Insert space padding after negations.
+    </p>
+    <div class="code">
+        <pre>if (!isFoo(a,b))
+    bar(a,b);
+</pre>
+        <p class="code">
+            becomes:</p>
+        <pre>if (! isFoo(a, b))
+    bar(a, b);
+</pre>
+    </div>
+
+    <p>
+        &nbsp;</p>
+    <p id="_pad-negation">
+        <code class="title">--pad-negation=before</code><br />
+        Insert space padding also before negations.
+    </p>
+    <div class="code">
+        <pre>if (!isFoo(a,b))
+    bar(a,b);
+</pre>
+        <p class="code">
+            becomes:</p>
+        <pre>if ( ! isFoo(a, b))
+    bar(a, b);
+</pre>
+    </div>
+
     <p>
         &nbsp;</p>
     <p id="_pad-paren">
@@ -1818,6 +1857,31 @@ isBar = false;
         <pre>a = b [ a [ 1 ] ];</pre>
     </div>
 
+    <p id="_pad-brackets-in">
+        <code class="title">--pad-brackets-in</code>
+        <br />
+        Insert space padding around square brackets the <strong>inside</strong> only.
+    </p>
+    <div class="code">
+        <pre>a = b[a[1]];</pre>
+        <p class="code">
+            becomes:</p>
+        <pre>a = b[ a[ 1 ] ];</pre>
+    </div>
+
+    <p id="_pad-brackets-out">
+        <code class="title">--pad-brackets-out</code>
+        <br />
+        Insert space padding around square brackets the <strong>outside</strong> only.
+    </p>
+    <div class="code">
+        <pre>a = b[a[1]];</pre>
+        <p class="code">
+            becomes:</p>
+        <pre>a = b [a [1]];</pre>
+    </div>
+
+
     <p id="_unpad-brackets">
         <code class="title">--unpad-brackets</code>
         <br />
@@ -1936,7 +2000,7 @@ string ^s1;</pre>
 char&amp; foo2;
 string^ s1;</pre>
     </div>
-    <div class="code">
+    <div class="code" style="margin-top:1em">
         <pre>char* foo1;
 char &amp; foo2;
 string ^s1;</pre>
@@ -1946,7 +2010,7 @@ string ^s1;</pre>
 char &amp; foo2;
 string ^ s1;</pre>
     </div>
-    <div class="code">
+    <div class="code" style="margin-top:1em">
         <pre>char* foo1;
 char &amp; foo2;
 string ^s1;</pre>
@@ -1974,14 +2038,14 @@ string ^s1;</pre>
             becomes (with align-reference=type):</p>
         <pre>char&amp; foo1;</pre>
     </div>
-    <div class="code">
+    <div class="code" style="margin-top:1em">
         <pre>char&amp; foo2;</pre>
         <p class="code">
             becomes (with align-reference=middle):</p>
         <pre>char &amp; foo2;</pre>
     </div>
-    <div class="code">
-        <pre>char& foo3;</pre>
+    <div class="code" style="margin-top:1em">
+        <pre>char&amp; foo3;</pre>
         <p class="code">
             becomes (with align-reference=name):</p>
         <pre>char &amp;foo3;</pre>
@@ -2146,7 +2210,7 @@ else
     <p>
         &nbsp;</p>
     <p id="_break-return-type">
-        <code class="title">--break-return-type &nbsp;&nbsp; / -xB</code><br />
+        <code class="title">--break-return-type &nbsp;&nbsp;&nbsp;&nbsp; / -xB</code><br />
         <code class="title">--break-return-type-decl / -xD</code><br />
         Break the return type from the function name. The two options are for the function definitions (-xB), and the
         function declarations or signatures (-xD). If used with --attach-return-type, the result will be to break the
@@ -2161,7 +2225,7 @@ Foo(bool isFoo);</pre>
     <p>
         &nbsp;</p>
     <p id="_attach-return-type">
-        <code class="title">--attach-return-type &nbsp;&nbsp; / -xf</code><br />
+        <code class="title">--attach-return-type &nbsp;&nbsp;&nbsp;&nbsp; / -xf</code><br />
         <code class="title">--attach-return-type-decl / -xh</code><br />
         Attach the return type to the function name. The two options are for the function definitions (-xf), and the
         function declarations or signatures (-xh). They are intended to undo the --break-return-type options. If used
@@ -2288,10 +2352,14 @@ Foo(bool isFoo);</pre>
         <code class="title">--mode=js</code><br />
         <code class="title">--mode=java</code><br />
         <code class="title">--mode=objc</code><br />
-        Indent a C type, C#, Javascript, Java or <span style="white-space: nowrap;">Objective-C</span> file. C type files are C, C++, C++/CLI. The option is usually
-        set from the file extension for each file. You can override the setting with this entry. It will be used for all
-        files, regardless of the file extension. It allows the formatter to identify language specific syntax such as
-        C++ classes, templates, and keywords.</p>
+        <code class="title">--mode=js <i>(experimental)</i></code><br />
+        <code class="title">--mode=ghc <i>(experimental)</i></code><br />
+        Indent a C type, C#, Javascript, Java or <span style="white-space: nowrap;">Objective-C</span> file.
+        JS and GHC support is experimental.
+        C type files are C, C++, C++/CLI. The option is usually set from the file extension for each file.
+        You can override the setting with this entry. It will be used for all files, regardless of the file extension.
+        It allows the formatter to identify language specific syntax such as C++ classes, templates, and keywords.
+    </p>
     <p>
         &nbsp;</p>
     <hr />
@@ -2440,7 +2508,7 @@ Foo(bool isFoo);</pre>
         &nbsp;</p>
     <p id="_pad-method-colon">
         <code class="title">--pad-method-colon=none&nbsp;&nbsp; / -xP0<br />
-            --pad-method-colon=all  / -xP1<br />
+            --pad-method-colon=all&nbsp;&nbsp;&nbsp; / -xP1<br />
             --pad-method-colon=after&nbsp; / -xP2<br />
             --pad-method-colon=before / -xP3
         </code><br />

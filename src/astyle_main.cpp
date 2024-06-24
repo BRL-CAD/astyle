@@ -34,6 +34,7 @@
 //-----------------------------------------------------------------------------
 
 #include "astyle_main.h"
+#include "astyle.h"
 
 #include <algorithm>
 #include <cerrno>
@@ -1340,6 +1341,7 @@ void ASConsole::getFileNames(const std::string& directory, const std::vector<std
 	{
 		// get file status
 		std::string entryFilepath = directory + g_fileSeparator + entry->d_name;
+
 		if (stat(entryFilepath.c_str(), &statbuf) != 0)
 		{
 			if (errno == EOVERFLOW)         // file over 2 GB is OK
@@ -1701,8 +1703,10 @@ void ASConsole::getFilePaths(const std::string& filePath)
 	}
 	else
 	{
+
 		// verify a single file is not a directory (needed on Linux)
 		std::string entryFilepath = targetDirectory + g_fileSeparator + targetFilename;
+
 		struct stat statbuf;
 		if (stat(entryFilepath.c_str(), &statbuf) == 0 && (statbuf.st_mode & S_IFREG))
 			fileName.emplace_back(entryFilepath);
@@ -2087,6 +2091,12 @@ void ASConsole::printHelp() const
 	std::cout << "    --pad-comma  OR  -xg\n";
 	std::cout << "    Insert space padding after commas.\n";
 	std::cout << std::endl;
+	std::cout << "    --pad-negation\n";
+	std::cout << "    Insert space padding after negations.\n";
+	std::cout << std::endl;
+	std::cout << "    --pad-negation=before\n";
+	std::cout << "    Insert space padding also before negations.\n";
+	std::cout << std::endl;
 	std::cout << "    --pad-paren  OR  -P\n";
 	std::cout << "    Insert space padding around parenthesis on both the outside\n";
 	std::cout << "    and the inside.\n";
@@ -2115,10 +2125,16 @@ void ASConsole::printHelp() const
 
 	std::cout << "    --pad-brackets\n";
 	std::cout << "    Insert space padding around square brackets on both the outside\n";
-	std::cout << "    and the inside (experimental).\n";
+	std::cout << "    and the inside.\n";
+	std::cout << std::endl;
+	std::cout << "    --pad-brackets-in\n";
+	std::cout << "    Insert space padding around square brackets on the inside only.\n";
+	std::cout << std::endl;
+	std::cout << "    --pad-brackets-out\n";
+	std::cout << "    Insert space padding around square brackets on the outside only.\n";
 	std::cout << std::endl;
 	std::cout << "    --unpad-brackets\n";
-	std::cout << "    Remove unnecessary space padding around square brackets (experimental).\n";
+	std::cout << "    Remove unnecessary space padding around square brackets.\n";
 	std::cout << std::endl;
 
 	std::cout << "    --delete-empty-lines  OR  -xe\n";
@@ -2130,10 +2146,10 @@ void ASConsole::printHelp() const
 	std::cout << "    previous lines.\n";
 	std::cout << std::endl;
 	std::cout << "    --squeeze-lines=#\n";
-	std::cout << "    Remove superfluous empty lines exceeding the given number (experimental).\n";
+	std::cout << "    Remove superfluous empty lines exceeding the given number.\n";
 	std::cout << std::endl;
 	std::cout << "    --squeeze-ws\n";
-	std::cout << "    Remove superfluous whitespace (experimental).\n";
+	std::cout << "    Remove superfluous whitespace.\n";
 	std::cout << std::endl;
 	std::cout << "    --align-pointer=type    OR  -k1\n";
 	std::cout << "    --align-pointer=middle  OR  -k2\n";
@@ -2165,6 +2181,7 @@ void ASConsole::printHelp() const
 	std::cout << "    statement residing on the same line.\n";
 	std::cout << std::endl;
 	std::cout << "    --add-braces  OR  -j\n";
+	std::cout << "    --add-braces=nested (experimental)\n";
 	std::cout << "    Add braces to unbraced one line conditional statements.\n";
 	std::cout << std::endl;
 	std::cout << "    --add-one-line-braces  OR  -J\n";
@@ -2224,6 +2241,9 @@ void ASConsole::printHelp() const
 	std::cout << std::endl;
 	std::cout << "    --mode=js\n";
 	std::cout << "    Indent a JavaScript source file (experimental).\n";
+	std::cout << std::endl;
+	std::cout << "    --mode=ghc\n";
+	std::cout << "    Indent a GHC source file (experimental).\n";
 	std::cout << std::endl;
 	std::cout << "Objective-C Options:\n";
 	std::cout << "--------------------\n";
@@ -2368,8 +2388,11 @@ void ASConsole::processFiles()
 		getFilePaths(fileNameVectorName);
 
 		// loop thru fileName vector formatting the files
-		for (const std::string& file : fileName)
-			formatFile(file);
+		for (const std::string& file : fileName) {
+			if (!stringEndsWith(file, origSuffix))
+				formatFile(file);
+		}
+
 	}
 
 	// files are processed, display stats
@@ -2791,7 +2814,7 @@ void ASConsole::sleep(int seconds) const
 	while (clock() < endwait) {}
 }
 
-bool ASConsole::stringEndsWith(const std::string& str, const std::string& suffix) const
+bool ASConsole::stringEndsWith(std::string_view str, std::string_view suffix) const
 {
 	int strIndex = (int) str.length() - 1;
 	int suffixIndex = (int) suffix.length() - 1;
@@ -3139,6 +3162,7 @@ bool ASOptions::parseOptions(std::vector<std::string>& optionsVector, const std:
 
 void ASOptions::parseOption(const std::string& arg, const std::string& errorInfo)
 {
+	NegationPaddingMode negationPaddingMode = NEGATION_PAD_NO_CHANGE;
 	if (isOption(arg, "A1", "style=allman") || isOption(arg, "style=bsd") || isOption(arg, "style=break"))
 	{
 		formatter.setFormattingStyle(STYLE_ALLMAN);
@@ -3227,6 +3251,11 @@ void ASOptions::parseOption(const std::string& arg, const std::string& errorInfo
 	else if (isOption(arg, "mode=objc"))
 	{
 		formatter.setObjCStyle();
+		formatter.setModeManuallySet(true);
+	}
+	else if (isOption(arg, "mode=ghc"))
+	{
+		formatter.setGHCStyle();
 		formatter.setModeManuallySet(true);
 	}
 	else if (isParamOption(arg, "t", "indent=tab="))
@@ -3417,6 +3446,14 @@ void ASOptions::parseOption(const std::string& arg, const std::string& errorInfo
 	{
 		formatter.setOperatorPaddingMode(true);
 	}
+	else if (isOption(arg, "pad-negation"))
+	{
+		negationPaddingMode = NEGATION_PAD_AFTER;
+	}
+	else if (isOption(arg, "pad-negation=before"))
+	{
+		negationPaddingMode = NEGATION_PAD_BEFORE;
+	}
 	else if (isOption(arg, "xg", "pad-comma"))
 	{
 		formatter.setCommaPaddingMode(true);
@@ -3465,9 +3502,13 @@ void ASOptions::parseOption(const std::string& arg, const std::string& errorInfo
 	{
 		formatter.setBreakOneLineHeadersMode(true);
 	}
+	else if (isOption(arg, "add-braces=nested"))
+	{
+		formatter.setAddBracesMode(2);
+	}
 	else if (isOption(arg, "j", "add-braces"))
 	{
-		formatter.setAddBracesMode(true);
+		formatter.setAddBracesMode(1);
 	}
 	else if (isOption(arg, "J", "add-one-line-braces"))
 	{
@@ -3614,6 +3655,9 @@ void ASOptions::parseOption(const std::string& arg, const std::string& errorInfo
 	{
 		isOptionError(arg, errorInfo);
 	}
+
+	formatter.setNegationPaddingMode(negationPaddingMode);
+
 }	// End of parseOption function
 
 // Continuation of parseOption.
@@ -3766,6 +3810,14 @@ bool ASOptions::parseOptionContinued(const std::string& arg, const std::string& 
 	{
 		formatter.setBracketsOutsidePaddingMode(true);
 		formatter.setBracketsInsidePaddingMode(true);
+	}
+	else if (isOption(arg, "pad-brackets-in"))
+	{
+		formatter.setBracketsInsidePaddingMode(true);
+	}
+	else if (isOption(arg, "pad-brackets-out"))
+	{
+		formatter.setBracketsOutsidePaddingMode(true);
 	}
 	else if (isOption(arg, "unpad-brackets"))
 	{
