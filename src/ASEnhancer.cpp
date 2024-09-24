@@ -1,5 +1,5 @@
 // ASEnhancer.cpp
-// Copyright (c) 2023 The Artistic Style Authors.
+// Copyright (c) 2024 The Artistic Style Authors.
 // This code is licensed under the MIT License.
 // License.md describes the conditions under which this software may be distributed.
 
@@ -104,7 +104,7 @@ void ASEnhancer::enhance(std::string& line, bool isInNamespace, bool isInPreproc
 		nextLineIsDeclareIndent = false;
 	}
 
-	if (line.length() == 0
+	if (line.empty()
 	        && !isInEventTable
 	        && !isInDeclareSection
 	        && !emptyLineFill)
@@ -238,7 +238,7 @@ size_t ASEnhancer::findCaseColon(std::string_view line, size_t caseIndex) const
  */
 int ASEnhancer::indentLine(std::string& line, int indent) const
 {
-	if (line.length() == 0
+	if (line.empty()
 	        && !emptyLineFill)
 		return 0;
 

@@ -1,5 +1,5 @@
 // astyle.h
-// Copyright (c) 2023 The Artistic Style Authors.
+// Copyright (c) 2024 The Artistic Style Authors.
 // This code is licensed under the MIT License.
 // License.md describes the conditions under which this software may be distributed.
 
@@ -10,15 +10,10 @@
 // headers
 //-----------------------------------------------------------------------------
 
-#ifdef __VMS
-	#define __USE_STD_IOSTREAM 1
-	#include <assert>
-#else
-	#include <cassert>
-#endif
+#include <cassert>
 
 #include <cctype>
-#include <iostream>		// for cout
+#include <iostream>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -28,36 +23,7 @@
 	#include <cstring>              // need both string and cstring for GCC
 #endif
 
-//-----------------------------------------------------------------------------
-// declarations
-//-----------------------------------------------------------------------------
-
-#ifdef _MSC_VER
-	#pragma warning(disable: 4267)  // conversion from size_t to int
-#endif
-
-#ifdef __BORLANDC__
-	#pragma warn -8004	            // variable is assigned a value that is never used
-#endif
-
-#ifdef __GNUC__
-	#pragma GCC diagnostic ignored "-Wconversion"
-#endif
-
-#ifdef __INTEL_COMPILER
-	// #pragma warning disable 383  // value copied to temporary, reference to temporary used
-	// #pragma warning disable 981  // operands are evaluated in unspecified order
-#endif
-
-#ifdef __clang__
-	#pragma clang diagnostic ignored "-Wshorten-64-to-32"
-#endif
-
-#define ASTYLE_VERSION "3.5"
-
-//-----------------------------------------------------------------------------
-// astyle namespace
-//-----------------------------------------------------------------------------
+#define ASTYLE_VERSION "3.6.2"
 
 namespace astyle {
 
@@ -65,7 +31,7 @@ namespace astyle {
 // definitions
 //----------------------------------------------------------------------------
 
-enum FileType { C_TYPE = 0, JAVA_TYPE = 1, SHARP_TYPE = 2, JS_TYPE = 3, OBJC_TYPE = 4, GHC_TYPE = 5, INVALID_TYPE = -1 };
+enum FileType { C_TYPE = 0, JAVA_TYPE = 1, SHARP_TYPE = 2, JS_TYPE = 3, OBJC_TYPE = 4, GSC_TYPE = 5, INVALID_TYPE = -1 };
 
 /* The enums below are not recognized by 'vectors' in Microsoft Visual C++
    V5 when they are part of a namespace!!!  Use Visual C++ V6 or higher.
@@ -170,10 +136,7 @@ enum LineEndFormat
 	LINEEND_DEFAULT,	// Use line break that matches most of the file
 	LINEEND_WINDOWS,
 	LINEEND_LINUX,
-	LINEEND_MACOLD,
-	LINEEND_CRLF = LINEEND_WINDOWS,
-	LINEEND_LF   = LINEEND_LINUX,
-	LINEEND_CR   = LINEEND_MACOLD
+	LINEEND_MACOLD
 };
 
 enum NegationPaddingMode
@@ -181,6 +144,13 @@ enum NegationPaddingMode
 	NEGATION_PAD_NO_CHANGE,
 	NEGATION_PAD_AFTER,
 	NEGATION_PAD_BEFORE
+};
+
+enum IncludeDirectivePaddingMode
+{
+	INCLUDE_PAD_NO_CHANGE,
+	INCLUDE_PAD_NONE,
+	INCLUDE_PAD_AFTER
 };
 
 //-----------------------------------------------------------------------------
@@ -240,17 +210,17 @@ public:
 class ASResource
 {
 public:
-	void buildAssignmentOperators(std::vector<const std::string*>* assignmentOperators);
-	void buildCastOperators(std::vector<const std::string*>* castOperators);
-	void buildHeaders(std::vector<const std::string*>* headers, int fileType, bool beautifier = false);
-	void buildIndentableMacros(std::vector<const std::pair<const std::string, const std::string>* >* indentableMacros);
-	void buildIndentableHeaders(std::vector<const std::string*>* indentableHeaders);
-	void buildNonAssignmentOperators(std::vector<const std::string*>* nonAssignmentOperators);
-	void buildNonParenHeaders(std::vector<const std::string*>* nonParenHeaders, int fileType, bool beautifier = false);
-	void buildOperators(std::vector<const std::string*>* operators, int fileType);
-	void buildPreBlockStatements(std::vector<const std::string*>* preBlockStatements, int fileType);
-	void buildPreCommandHeaders(std::vector<const std::string*>* preCommandHeaders, int fileType);
-	void buildPreDefinitionHeaders(std::vector<const std::string*>* preDefinitionHeaders, int fileType);
+	static void buildAssignmentOperators(std::vector<const std::string*>* assignmentOperators);
+	static void buildCastOperators(std::vector<const std::string*>* castOperators);
+	static void buildHeaders(std::vector<const std::string*>* headers, int fileType, bool beautifier = false);
+	static void buildIndentableMacros(std::vector<const std::pair<const std::string, const std::string>* >* indentableMacros);
+	static void buildIndentableHeaders(std::vector<const std::string*>* indentableHeaders);
+	static void buildNonAssignmentOperators(std::vector<const std::string*>* nonAssignmentOperators);
+	static void buildNonParenHeaders(std::vector<const std::string*>* nonParenHeaders, int fileType, bool beautifier = false);
+	static void buildOperators(std::vector<const std::string*>* operators, int fileType);
+	static void buildPreBlockStatements(std::vector<const std::string*>* preBlockStatements, int fileType);
+	static void buildPreCommandHeaders(std::vector<const std::string*>* preCommandHeaders, int fileType);
+	static void buildPreDefinitionHeaders(std::vector<const std::string*>* preDefinitionHeaders, int fileType);
 
 public:
 	static const std::string AS_IF, AS_ELSE;
@@ -273,6 +243,7 @@ public:
 	static const std::string AS_OPEN_PAREN, AS_CLOSE_PAREN;
 	static const std::string AS_OPEN_BRACE, AS_CLOSE_BRACE;
 	static const std::string AS_OPEN_LINE_COMMENT, AS_OPEN_COMMENT, AS_CLOSE_COMMENT;
+	static const std::string AS_GSC_OPEN_COMMENT, AS_GSC_CLOSE_COMMENT;
 	static const std::string AS_BAR_DEFINE, AS_BAR_INCLUDE, AS_BAR_IF, AS_BAR_EL, AS_BAR_ENDIF;
 	static const std::string AS_AUTO, AS_RETURN;
 	static const std::string AS_CIN, AS_COUT, AS_CERR, AS_MAPPING;
@@ -302,7 +273,7 @@ public:
 // Functions definitions are at the end of ASResource.cpp.
 //-----------------------------------------------------------------------------
 
-class ASBase : protected ASResource
+class ASBase
 {
 private:
 	// all variables should be set by the "init" function
@@ -313,12 +284,12 @@ protected:
 
 protected:  // inline functions
 	void init(int fileTypeArg) { baseFileType = fileTypeArg; }
-	bool isCStyle() const { return baseFileType == C_TYPE || baseFileType == OBJC_TYPE || baseFileType == GHC_TYPE; }
+	bool isCStyle() const { return baseFileType == C_TYPE || baseFileType == OBJC_TYPE || baseFileType == GSC_TYPE; }
 	bool isJavaStyle() const { return baseFileType == JAVA_TYPE; }
 	bool isSharpStyle() const { return baseFileType == SHARP_TYPE; }
 	bool isJSStyle() const { return baseFileType == JS_TYPE; }
 	bool isObjCStyle() const { return baseFileType == OBJC_TYPE; }
-	bool isGHCStyle() const { return baseFileType == GHC_TYPE; }
+	bool isGSCStyle() const { return baseFileType == GSC_TYPE; }
 
 	bool isWhiteSpace(char ch) const { return (ch == ' ' || ch == '\t'); }
 
@@ -365,8 +336,7 @@ public:
 	void setJSStyle();
 	void setObjCStyle();
 	void setSharpStyle();
-	void setGHCStyle();
-
+	void setGSCStyle();
 
 	void setLabelIndent(bool state);
 	void setMaxContinuationIndentLength(int max);
@@ -436,7 +406,7 @@ private:  // functions
 	void adjustObjCMethodDefinitionIndentation(std::string_view line_);
 	void adjustObjCMethodCallIndentation(std::string_view line_);
 	void adjustParsedLineIndentation(size_t iPrelim, bool isInExtraHeaderIndent);
-	void computePreliminaryIndentation(std::string_view line);
+	void computePreliminaryIndentation();
 	void parseCurrentLine(std::string_view line);
 	void popLastContinuationIndent();
 	void processPreprocessor(std::string_view preproc, std::string_view line);
@@ -738,6 +708,8 @@ public:	// functions
 	void setObjCColonPaddingMode(ObjCColonPad mode);
 	void setOperatorPaddingMode(bool state);
 	void setNegationPaddingMode(NegationPaddingMode mode);
+	void setIncludeDirectivePaddingMode(IncludeDirectivePaddingMode mode);
+
 
 	void setParensOutsidePaddingMode(bool state);
 	void setParensFirstPaddingMode(bool state);
@@ -866,7 +838,7 @@ private:  // functions
 	void padObjCParamType();
 	void padObjCReturnType();
 	void padOperators(const std::string* newOperator);
-	void padParensOrBrackets(char openDelim, char closeDelim, bool shouldPadParensOutside, bool shouldPadParensInside, bool shouldUnPadParens, bool shouldPadFirstParen);
+	void padParensOrBrackets(char openDelim, char closeDelim, bool padFirstParen);
 	void processPreprocessor();
 	void resetEndOfStatement();
 	void setAttachClosingBraceMode(bool state);
@@ -961,6 +933,7 @@ private:  // variables
 	ObjCColonPad objCColonPadMode;
 	LineEndFormat lineEnd;
 	NegationPaddingMode negationPadMode;
+	IncludeDirectivePaddingMode includeDirectivePaddingMode;
 
 	bool isVirgin;
 	bool isInVirginLine;
