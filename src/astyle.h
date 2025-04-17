@@ -1,10 +1,15 @@
 // astyle.h
-// Copyright (c) 2024 The Artistic Style Authors.
+// Copyright (c) 2025 The Artistic Style Authors.
 // This code is licensed under the MIT License.
 // License.md describes the conditions under which this software may be distributed.
 
 #ifndef ASTYLE_H
 #define ASTYLE_H
+
+// ignore size_t to int conversion warning for now
+#ifdef _WIN64
+	#pragma warning( disable : 4267 )
+#endif
 
 //-----------------------------------------------------------------------------
 // headers
@@ -23,7 +28,7 @@
 	#include <cstring>              // need both string and cstring for GCC
 #endif
 
-#define ASTYLE_VERSION "3.6.2"
+#define ASTYLE_VERSION "3.6.8"
 
 namespace astyle {
 
@@ -215,7 +220,7 @@ public:
 	static void buildHeaders(std::vector<const std::string*>* headers, int fileType, bool beautifier = false);
 	static void buildIndentableMacros(std::vector<const std::pair<const std::string, const std::string>* >* indentableMacros);
 	static void buildIndentableHeaders(std::vector<const std::string*>* indentableHeaders);
-	static void buildNonAssignmentOperators(std::vector<const std::string*>* nonAssignmentOperators);
+	static void buildNonAssignmentOperators(std::vector<const std::string*>* nonAssignmentOperators, int fileType);
 	static void buildNonParenHeaders(std::vector<const std::string*>* nonParenHeaders, int fileType, bool beautifier = false);
 	static void buildOperators(std::vector<const std::string*>* operators, int fileType);
 	static void buildPreBlockStatements(std::vector<const std::string*>* preBlockStatements, int fileType);
@@ -291,8 +296,6 @@ protected:  // inline functions
 	bool isObjCStyle() const { return baseFileType == OBJC_TYPE; }
 	bool isGSCStyle() const { return baseFileType == GSC_TYPE; }
 
-	bool isWhiteSpace(char ch) const { return (ch == ' ' || ch == '\t'); }
-
 protected:  // functions definitions are at the end of ASResource.cpp
 	const std::string* findHeader(std::string_view line, int i,
 	                              const std::vector<const std::string*>* possibleHeaders) const;
@@ -353,6 +356,7 @@ public:
 	void setPreprocDefineIndent(bool state);
 	void setPreprocConditionalIndent(bool state);
 	void setSqueezeWhitespace(bool state);
+	void setPreserveWhitespace(bool state);
 	void setLambdaIndentation(bool state);
 	int  getBeautifierFileType() const;
 	int  getFileType() const;
@@ -383,12 +387,18 @@ protected:
 	std::string extractPreprocessorStatement(std::string_view line) const;
 	std::string trim(std::string_view str) const;
 	std::string rtrim(std::string_view str) const;
+	bool isNumericVariable(std::string_view word) const;
+	bool lineStartsWithNumericType(std::string_view line) const;
+
 
 	// variables set by ASFormatter - must be updated in activeBeautifierStack
 	int  inLineNumber;
 	int  runInIndentContinuation;
 	int  nonInStatementBrace;
 	int  objCColonAlignSubsequent;		// for subsequent lines not counting indent
+	int  bracesNestingLevel;
+	int  bracesNestingLevelOfStruct;
+
 	bool lineCommentNoBeautify;
 	bool isElseHeaderIndent;
 	bool isCaseHeaderCommentIndent;
@@ -400,6 +410,7 @@ protected:
 	bool isInIndentableStruct;
 	bool isInIndentablePreproc;
 	bool lambdaIndicator;
+	bool preserveWhitespace;
 
 
 private:  // functions
@@ -439,6 +450,15 @@ private:  // functions
 	template<typename T> void initContainer(T& container, T value);
 	std::vector<std::vector<const std::string*>*>* copyTempStacks(const ASBeautifier& other) const;
 	std::pair<int, int> computePreprocessorIndent();
+
+	bool handleHeaderSection(std::string_view line, size_t* i, bool closingBraceReached, bool *haveCaseIndent);
+	bool handleColonSection(std::string_view line, size_t* i, bool tabIncrementIn, char* ch);
+	void handleEndOfStatement(size_t i, bool *closingBraceReached, char* ch);
+	void handleParens(std::string_view line, size_t i, bool tabIncrementIn, bool * isInOperator, char ch);
+	void handleClosingParen(std::string_view line, size_t i, bool tabIncrementIn);
+	void handlePotentialHeaderSection(std::string_view line, size_t* i, bool tabIncrementIn, bool *isInOperator);
+	void handlePotentialOperatorSection(std::string_view line, size_t* i, bool tabIncrementIn, bool haveAssignmentThisLine, bool isInOperator);
+
 
 private:  // variables
 	int beautifierFileType;
@@ -540,6 +560,7 @@ private:  // variables
 	bool shouldAlignMethodColon;
 	bool shouldIndentPreprocConditional;
 	bool squeezeWhitespace;
+
 	bool attemptLambdaIndentation;
 
 	bool isInAssignment;
@@ -569,6 +590,7 @@ private:  // variables
 	int  prevFinalLineIndentCount;
 	int  defineIndentCount;
 	int  preprocBlockIndent;
+	size_t quoteContinuationIndent;
 	char quoteChar;
 	char prevNonSpaceCh;
 	char currentNonSpaceCh;
@@ -668,11 +690,12 @@ public:	// functions
 	void init(ASSourceIterator* si) override;
 
 	bool hasMoreLines() const;
+	void extracted();
 	std::string nextLine();
 	LineEndFormat getLineEndFormat() const;
 	bool getIsLineReady() const;
 	void setFormattingStyle(FormatStyle style);
-	void setAddBracesMode(int state);
+	void setAddBracesMode(bool state);
 	void setAddOneLineBracesMode(bool state);
 	void setRemoveBracesMode(bool state);
 	void setAttachClass(bool state);
@@ -771,7 +794,6 @@ private:  // functions
 	bool isMultiStatementLine() const;
 	bool isNextWordSharpNonParenHeader(int startChar) const;
 	bool isNonInStatementArrayBrace() const;
-	bool isNumericVariable(std::string_view word) const;
 	bool isOkToSplitFormattedLine();
 	bool isPointerOrReference() const;
 	bool isPointerOrReferenceCentered() const;
@@ -855,6 +877,27 @@ private:  // functions
 	                         bool endOnEmptyLine = false,
 	                         const std::shared_ptr<ASPeekStream>& streamArg = nullptr) const;
 
+
+
+	bool handleImmediatelyPostHeaderSection();
+	bool handlePassedSemicolonSection();
+	void handleAttachedReturnTypes();
+	void handleClosedBracesOrParens();
+	void handleBraces();
+	void handleBreakLine();
+	bool handlePotentialHeader(const std::string*);
+	void handleEndOfBlock();
+	void handleColonSection();
+	void handlePotentialHeaderPart2();
+	void handlePotentialOperator(const std::string*);
+	void handleParens();
+	void handleOpenParens();
+
+	void formatFirstOpenBrace(BraceType braceType);
+	void formatOpenBrace();
+	void formatCloseBrace(BraceType braceType);
+
+
 private:  // variables
 	int formatterFileType;
 	std::vector<const std::string*>* headers;
@@ -897,7 +940,7 @@ private:  // variables
 	int  templateDepth;
 	int  squareBracketCount;
 	int  parenthesesCount;
-	int  closingBracesCount;
+
 	size_t  squeezeEmptyLineNum;
 	size_t  squeezeEmptyLineCount;
 
@@ -1098,7 +1141,7 @@ private:  // inline functions
 	// check if a specific sequence exists in the current placement of the current line
 	bool isSequenceReached(std::string_view sequence) const
 	{
-    	return currentLine.compare(charNum, sequence.length(), sequence) == 0;
+		return currentLine.compare(charNum, sequence.length(), sequence) == 0;
 	}
 
 	// call ASBase::findHeader for the current character

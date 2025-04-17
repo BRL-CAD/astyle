@@ -1,5 +1,5 @@
 // astyle_main.h
-// Copyright (c) 2024 The Artistic Style Authors.
+// Copyright (c) 2025 The Artistic Style Authors.
 // This code is licensed under the MIT License.
 // License.md describes the conditions under which this software may be distributed.
 
@@ -230,6 +230,9 @@ private:    // variables
 	bool hasWildcard;                   // file name includes a wildcard
 	size_t mainDirectoryLength;         // directory length to be excluded in displays
 	bool filesAreIdentical;             // input and output files are identical
+	bool acceptEmptyFileList;           // empty input file list will not be reported as error
+	bool rejectDryRunWithFormat;        // formatted files in dry run mode will be reported as error
+
 	int  filesFormatted;                // number of files formatted
 	int  filesUnchanged;                // number of files unchanged
 	int  linesOut;                      // number of output lines
@@ -278,6 +281,7 @@ public:     // functions
 	bool getLineEndsMixed() const;
 	bool getNoBackup() const;
 	bool getPreserveDate() const;
+
 	std::string getLanguageID() const;
 	std::string getNumberFormat(int num, size_t lcid = 0) const;
 	std::string getNumberFormat(int num, const char* groupingArg, const char* separator) const;
@@ -294,6 +298,7 @@ public:     // functions
 	void setIgnoreExcludeErrors(bool state);
 	void setIgnoreExcludeErrorsAndDisplay(bool state);
 	void setIsDryRun(bool state);
+	void setRejectFormatWithDryRun(bool state);
 	void setIsFormattedOnly(bool state);
 	void setIsQuiet(bool state);
 	void setIsRecursive(bool state);
@@ -305,9 +310,11 @@ public:     // functions
 	void setProjectOptionFileName(const std::string& optfilepath);
 	void setStdPathIn(const std::string& path);
 	void setStdPathOut(const std::string& path);
+	void setAcceptEmptyInputFileList(bool state);
 	void standardizePath(std::string& path, bool removeBeginningSeparator = false) const;
 	bool stringEndsWith(std::string_view str, std::string_view suffix) const;
 	void updateExcludeVector(const std::string& suffixParam);
+
 	std::vector<std::string> getExcludeVector() const;
 	std::vector<bool>   getExcludeHitsVector() const;
 	std::vector<std::string> getFileNameVector() const;
@@ -399,9 +406,9 @@ extern "C" EXPORT
 jstring STDCALL Java_cc_arduino_packages_formatter_AStyleInterface_AStyleGetVersion(JNIEnv* env, jclass);
 extern "C" EXPORT
 jstring STDCALL Java_cc_arduino_packages_formatter_AStyleInterface_AStyleMain(JNIEnv* env,
-                                                jobject obj,
-                                                jstring textInJava,
-                                                jstring optionsJava);
+        jobject obj,
+        jstring textInJava,
+        jstring optionsJava);
 #endif //  ASTYLE_JNI
 
 //----------------------------------------------------------------------------

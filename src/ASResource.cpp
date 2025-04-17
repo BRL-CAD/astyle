@@ -1,5 +1,5 @@
 // ASResource.cpp
-// Copyright (c) 2024 The Artistic Style Authors.
+// Copyright (c) 2025 The Artistic Style Authors.
 // This code is licensed under the MIT License.
 // License.md describes the conditions under which this software may be distributed.
 
@@ -356,8 +356,10 @@ void ASResource::buildIndentableMacros(std::vector<const std::pair<const std::st
  * Used by ONLY ASBeautifier.cpp
  *
  * @param nonAssignmentOperators       a reference to the vector to be built.
+ * @param fileType              language identifier.
+ *
  */
-void ASResource::buildNonAssignmentOperators(std::vector<const std::string*>* nonAssignmentOperators)
+void ASResource::buildNonAssignmentOperators(std::vector<const std::string*>* nonAssignmentOperators, int fileType)
 {
 	const size_t elements = 16;
 	nonAssignmentOperators->reserve(elements);
@@ -367,16 +369,19 @@ void ASResource::buildNonAssignmentOperators(std::vector<const std::string*>* no
 	nonAssignmentOperators->emplace_back(&AS_MINUS_MINUS);
 	nonAssignmentOperators->emplace_back(&AS_NOT_EQUAL);
 	nonAssignmentOperators->emplace_back(&AS_GR_EQUAL);
-	nonAssignmentOperators->emplace_back(&AS_GR_GR_GR);
 	nonAssignmentOperators->emplace_back(&AS_GR_GR);
 	nonAssignmentOperators->emplace_back(&AS_LS_EQUAL);
-	nonAssignmentOperators->emplace_back(&AS_LS_LS_LS);
 	nonAssignmentOperators->emplace_back(&AS_LS_LS);
 	nonAssignmentOperators->emplace_back(&AS_ARROW);
 	nonAssignmentOperators->emplace_back(&AS_AND);
 	nonAssignmentOperators->emplace_back(&AS_OR);
 	nonAssignmentOperators->emplace_back(&AS_LAMBDA);
 	nonAssignmentOperators->emplace_back(&AS_DOT);
+
+	if (fileType == JAVA_TYPE) {
+		nonAssignmentOperators->emplace_back(&AS_GR_GR_GR);
+		nonAssignmentOperators->emplace_back(&AS_LS_LS_LS);
+	}
 
 	assert(nonAssignmentOperators->size() < elements);
 	sort(nonAssignmentOperators->begin(), nonAssignmentOperators->end(), sortOnLength);
@@ -388,6 +393,8 @@ void ASResource::buildNonAssignmentOperators(std::vector<const std::string*>* no
  * NOTE: Non-paren headers should also be included in the headers vector.
  *
  * @param nonParenHeaders       a reference to the std::vector to be built.
+ * @param fileType              language identifier.
+ *
  */
 void ASResource::buildNonParenHeaders(std::vector<const std::string*>* nonParenHeaders, int fileType, bool beautifier)
 {
@@ -503,9 +510,9 @@ void ASResource::buildOperators(std::vector<const std::string*>* operators, int 
 		operators->emplace_back(&AS_EQUAL_JS);
 	}
 	if (fileType == SHARP_TYPE)
-    {
-    	operators->emplace_back(&AS_COALESCE_CS);
-    }
+	{
+		operators->emplace_back(&AS_COALESCE_CS);
+	}
 	assert(operators->size() < elements);
 	sort(operators->begin(), operators->end(), sortOnLength);
 }
@@ -732,8 +739,8 @@ std::string_view ASBase::getCurrentWord(std::string_view line, size_t index) con
 	for (i = index; i < lineLength; i++)
 	{
 		if (!isLegalNameChar(line[i])
-			|| ( (isCStyle() || isJavaStyle()) && i > index && line[i]=='.')
-			)
+		        || ( (isCStyle() || isJavaStyle()) && i > index && line[i] == '.')
+		   )
 			break;
 	}
 	return line.substr(index, i - index);
@@ -742,13 +749,13 @@ std::string_view ASBase::getCurrentWord(std::string_view line, size_t index) con
 // check if a specific character can be used in a legal variable/method/class name
 bool ASBase::isLegalNameChar(char ch) const
 {
-	if (isWhiteSpace(ch))
+	if (std::isblank(ch))
 		return false;
 	if ((unsigned char) ch > 127)
 		return false;
 	return (isalnum((unsigned char) ch)
-            || ch == '_'
-            || (!isSharpStyle() && ch == '.' )
+	        || ch == '_'
+	        || (!isSharpStyle() && ch == '.' )
 	        || (isJavaStyle() && ch == '$')
 	        || (isSharpStyle() && ch == '@'));  // may be used as a prefix
 }
@@ -756,7 +763,7 @@ bool ASBase::isLegalNameChar(char ch) const
 // check if a specific character can be part of a header
 bool ASBase::isCharPotentialHeader(std::string_view line, size_t i) const
 {
-	assert(!isWhiteSpace(line[i]));
+	assert(!std::isblank(line[i]));
 	char prevCh = ' ';
 	if (i > 0)
 		prevCh = line[i - 1];
@@ -770,7 +777,7 @@ bool ASBase::isCharPotentialHeader(std::string_view line, size_t i) const
 // check if a specific character can be part of an operator
 bool ASBase::isCharPotentialOperator(char ch) const
 {
-	assert(!isWhiteSpace(ch));
+	assert(!std::isblank(ch));
 	if ((unsigned) ch > 127)
 		return false;
 	return (ispunct((unsigned char) ch)

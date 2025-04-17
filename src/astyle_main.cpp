@@ -1,5 +1,5 @@
 // astyle_main.cpp
-// Copyright (c) 2024 The Artistic Style Authors.
+// Copyright (c) 2025 The Artistic Style Authors.
 // This code is licensed under the MIT License.
 // License.md describes the conditions under which this software may be distributed.
 
@@ -175,7 +175,7 @@ std::string ASStreamIterator<T>::nextLine(bool emptyLineWasDeleted)
 	lastOutputEOL.clear();
 	lastOutputEOL.append(1, ch);
 
-	int peekCh = inStream->peek();
+	char peekCh = (char)inStream->peek();
 
 	// find input end-of-line characters
 	if (!inStream->eof())
@@ -283,6 +283,7 @@ ASConsole::ASConsole(ASFormatter& formatterArg) : formatter(formatterArg)
 	// command line options
 	isRecursive = false;
 	isDryRun = false;
+	rejectDryRunWithFormat = false;
 	noBackup = false;
 	preserveDate = false;
 	isVerbose = false;
@@ -295,6 +296,7 @@ ASConsole::ASConsole(ASFormatter& formatterArg) : formatter(formatterArg)
 	bypassBrowserOpen = false;
 	hasWildcard = false;
 	filesAreIdentical = true;
+	acceptEmptyFileList = false;
 	origSuffix = ".orig";
 	mainDirectoryLength = 0;
 	filesFormatted = 0;
@@ -405,7 +407,8 @@ void ASConsole::formatCinToCout()
 	{
 		std::cout << formatter.nextLine();
 
-		if (LINEEND_DEFAULT == formatter.getLineEndFormat()){
+		if (LINEEND_DEFAULT == formatter.getLineEndFormat())
+		{
 			outputEOL = streamIterator.getLastOutputEOL();
 		}
 
@@ -445,6 +448,8 @@ void ASConsole::formatFile(const std::string& fileName_)
 			formatter.setJavaStyle();
 		else if (stringEndsWith(fileName_, std::string(".cs")))
 			formatter.setSharpStyle();
+		else if (stringEndsWith(fileName_, std::string(".gsc")) || stringEndsWith(fileName_, std::string(".ghc")))
+			formatter.setGSCStyle();
 		else
 			formatter.setCStyle();
 	}
@@ -465,7 +470,8 @@ void ASConsole::formatFile(const std::string& fileName_)
 		out << nextLine;
 		linesOut++;
 
-		if (LINEEND_DEFAULT == formatter.getLineEndFormat()){
+		if (LINEEND_DEFAULT == formatter.getLineEndFormat())
+		{
 			outputEOL = streamIterator.getLastOutputEOL();
 		}
 
@@ -487,14 +493,18 @@ void ASConsole::formatFile(const std::string& fileName_)
 			}
 		}
 
-		if (filesAreIdentical) {
-			if (streamIterator.checkForEmptyLine) {
+		if (filesAreIdentical)
+		{
+			if (streamIterator.checkForEmptyLine)
+			{
 				filesAreIdentical = (nextLine.find_first_not_of(" \t") == std::string::npos);
-			} else {
+			}
+			else
+			{
 				filesAreIdentical = streamIterator.compareToInputBuffer(nextLine) &&
-						(LINEEND_DEFAULT == formatter.getLineEndFormat() || streamIterator.getLastOutputEOL() == outputEOL);
-    		}
-    		streamIterator.checkForEmptyLine = false;
+				                    (LINEEND_DEFAULT == formatter.getLineEndFormat() || streamIterator.getLastOutputEOL() == outputEOL);
+			}
+			streamIterator.checkForEmptyLine = false;
 		}
 	}
 
@@ -510,7 +520,9 @@ void ASConsole::formatFile(const std::string& fileName_)
 			writeFile(fileName_, encoding, out);
 		printMsg(_("Formatted  %s\n"), displayName);
 		filesFormatted++;
-	} else {
+	}
+	else
+	{
 		if (!isFormattedOnly)
 			printMsg(_("Unchanged  %s\n"), displayName);
 		filesUnchanged++;
@@ -845,6 +857,9 @@ void ASConsole::setIsRecursive(bool state)
 void ASConsole::setIsDryRun(bool state)
 { isDryRun = state; }
 
+void ASConsole::setRejectFormatWithDryRun(bool state)
+{ rejectDryRunWithFormat = state; }
+
 void ASConsole::setIsVerbose(bool state)
 { isVerbose = state; }
 
@@ -868,6 +883,10 @@ void ASConsole::setStdPathIn(const std::string& path)
 
 void ASConsole::setStdPathOut(const std::string& path)
 { stdPathOut = path; }
+
+void ASConsole::setAcceptEmptyInputFileList(bool state)
+{ acceptEmptyFileList = state; }
+
 
 
 #ifdef _WIN32  // Windows specific
@@ -988,14 +1007,6 @@ void ASConsole::getFileNames(const std::string& directory, const std::vector<std
 		getFileNames(subDirectoryName, wildcards);
 }
 
-// WINDOWS function to get the full path name from the relative path name
-// Return the full path name or an empty string if failed.
-std::string ASConsole::getFullPathName(const std::string& relativePath) const
-{
-	char fullPath[MAX_PATH];
-	GetFullPathName(relativePath.c_str(), MAX_PATH, fullPath, nullptr);
-	return fullPath;
-}
 
 /**
  * WINDOWS function to format a number according to the current locale.
@@ -1231,17 +1242,6 @@ void ASConsole::getFileNames(const std::string& directory, const std::vector<std
 	}
 }
 
-// LINUX function to get the full path name from the relative path name
-// Return the full path name or an empty std::string if failed.
-std::string ASConsole::getFullPathName(const std::string& relativePath) const
-{
-	char* fullPath = realpath(relativePath.c_str(), nullptr);
-	if (fullPath == nullptr)
-		return std::string();
-	const std::string p(fullPath);
-	free(fullPath);
-	return p;
-}
 
 // LINUX function to get the documentation file path prefix
 //     from the executable file path.
@@ -1430,6 +1430,14 @@ void ASConsole::launchDefaultBrowser(const char* filePathIn /*nullptr*/) const
 
 #endif  // _WIN32
 
+
+// function to get the full path name from the relative path name
+// Return the full path name or an empty std::string if failed.
+std::string ASConsole::getFullPathName(const std::string& relativePath) const
+{
+	return std::filesystem::absolute(std::filesystem::path(relativePath)).string();
+}
+
 /**
  * Returns the parent directory of absPath. If absPath is not a valid absolute
  * path or if it does not have a parent, an empty string is returned.
@@ -1567,7 +1575,7 @@ void ASConsole::getFilePaths(const std::string& filePath)
 	}
 
 	// check if files were found (probably an input error if not)
-	if (fileName.empty())
+	if (fileName.empty() && !acceptEmptyFileList)
 	{
 		fprintf(stderr, _("No file to process %s\n"), filePath.c_str());
 		if (hasWildcard && !isRecursive)
@@ -1643,7 +1651,7 @@ bool ASConsole::isPathExcluded(const std::string& subPath)
 			return true;
 		}
 	}
-    return false;
+	return false;
 }
 
 
@@ -1898,8 +1906,9 @@ void ASConsole::printHelp() const
 	std::cout << "    Insert empty lines around unrelated blocks, labels, classes, ...\n";
 	std::cout << '\n';
 	std::cout << "    --break-blocks=all  OR  -F\n";
-	std::cout << "    Like --break-blocks, except also insert empty lines \n";
-	std::cout << "    around closing headers (e.g. 'else', 'catch', ...).\n";
+	std::cout << "    Like --break-blocks, except also insert empty lines\n";
+	std::cout << "    around closing headers (e.g. 'else', 'catch', ...), structs,\n";
+	std::cout << "    and functions.\n";
 	std::cout << '\n';
 	std::cout << "    --pad-oper  OR  -p\n";
 	std::cout << "    Insert space padding around operators.\n";
@@ -1975,6 +1984,9 @@ void ASConsole::printHelp() const
 	std::cout << "    --squeeze-ws\n";
 	std::cout << "    Remove superfluous whitespace.\n";
 	std::cout << '\n';
+	std::cout << "    --preserve-ws\n";
+	std::cout << "    Preserve whitespace near comma operators if squeeze-ws is not set.\n";
+	std::cout << '\n';
 	std::cout << "    --align-pointer=type    OR  -k1\n";
 	std::cout << "    --align-pointer=middle  OR  -k2\n";
 	std::cout << "    --align-pointer=name    OR  -k3\n";
@@ -2005,7 +2017,6 @@ void ASConsole::printHelp() const
 	std::cout << "    statement residing on the same line.\n";
 	std::cout << '\n';
 	std::cout << "    --add-braces  OR  -j\n";
-	std::cout << "    --add-braces=nested (experimental)\n";
 	std::cout << "    Add braces to unbraced one line conditional statements.\n";
 	std::cout << '\n';
 	std::cout << "    --add-one-line-braces  OR  -J\n";
@@ -2064,10 +2075,10 @@ void ASConsole::printHelp() const
 	std::cout << "    Indent an Objective-C source file.\n";
 	std::cout << '\n';
 	std::cout << "    --mode=js\n";
-	std::cout << "    Indent a JavaScript source file (experimental).\n";
+	std::cout << "    Indent a JavaScript source file.\n";
 	std::cout << '\n';
 	std::cout << "    --mode=gsc\n";
-	std::cout << "    Indent a GSC source file (experimental).\n";
+	std::cout << "    Indent a GSC source file.\n";
 	std::cout << '\n';
 	std::cout << "Objective-C Options:\n";
 	std::cout << "--------------------\n";
@@ -2115,6 +2126,9 @@ void ASConsole::printHelp() const
 	std::cout << "    --dry-run\n";
 	std::cout << "    Perform a trial run with no changes made to check for formatting.\n";
 	std::cout << '\n';
+	std::cout << "    --error-on-changes\n";
+	std::cout << "    With --dry-run: Report any file reformat as error.\n";
+	std::cout << '\n';
 	std::cout << "    --exclude=####\n";
 	std::cout << "    Specify a file or directory #### to be excluded from processing.\n";
 	std::cout << '\n';
@@ -2125,6 +2139,9 @@ void ASConsole::printHelp() const
 	std::cout << "    --ignore-exclude-errors-x  OR  -xi\n";
 	std::cout << "    Allow processing to continue if there are errors in the exclude=####\n";
 	std::cout << "    options. It will NOT display the unmatched excludes.\n";
+	std::cout << '\n';
+	std::cout << "    --accept-empty-list\n";
+	std::cout << "    With wildcard or -R: Do not report an empty input file list as error.\n";
 	std::cout << '\n';
 	std::cout << "    --errors-to-stdout  OR  -X\n";
 	std::cout << "    Print errors and help information to standard-output rather than\n";
@@ -2176,11 +2193,11 @@ void ASConsole::printHelp() const
 	std::cout << "    --help  OR  -h  OR  -?\n";
 	std::cout << "    Print this help message.\n";
 	std::cout << '\n';
-	std::cout << "    --html  OR  -!\n";
+	std::cout << "    --html  OR  -! (deprecated)\n";
 	std::cout << "    Open the HTML help file \"astyle.html\" in the default browser.\n";
 	std::cout << "    The documentation must be installed in the standard install path.\n";
 	std::cout << '\n';
-	std::cout << "    --html=####\n";
+	std::cout << "    --html=#### (deprecated)\n";
 	std::cout << "    Open a HTML help file in the default browser using the file path\n";
 	std::cout << "    ####. The path may include a directory path and a file name, or a\n";
 	std::cout << "    file name only. Paths containing spaces must be enclosed in quotes.\n";
@@ -2212,7 +2229,8 @@ void ASConsole::processFiles()
 		getFilePaths(fileNameVectorName);
 
 		// loop thru fileName vector formatting the files
-		for (const std::string& file : fileName) {
+		for (const std::string& file : fileName)
+		{
 			if (!stringEndsWith(file, origSuffix))
 				formatFile(file);
 		}
@@ -2222,6 +2240,11 @@ void ASConsole::processFiles()
 	// files are processed, display stats
 	if (isVerbose)
 		printVerboseStats(startTime);
+
+	if (isDryRun && rejectDryRunWithFormat && filesFormatted > 0)
+	{
+		exit(EXIT_FAILURE);
+	}
 }
 
 // process options from the command line and option files
@@ -2592,7 +2615,7 @@ void ASConsole::sleep(int seconds) const
 
 bool ASConsole::stringEndsWith(std::string_view str, std::string_view suffix) const
 {
-    return str.size() >= suffix.size() && str.compare(str.size()-suffix.size(), suffix.size(), suffix) == 0;
+	return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
 void ASConsole::updateExcludeVector(const std::string& suffixParam)
@@ -3271,13 +3294,9 @@ void ASOptions::parseOption(const std::string& arg)
 	{
 		formatter.setBreakOneLineHeadersMode(true);
 	}
-	else if (isOption(arg, "add-braces=nested"))
-	{
-		formatter.setAddBracesMode(2);
-	}
 	else if (isOption(arg, "j", "add-braces"))
 	{
-		formatter.setAddBracesMode(1);
+		formatter.setAddBracesMode(true);
 	}
 	else if (isOption(arg, "J", "add-one-line-braces"))
 	{
@@ -3513,6 +3532,10 @@ bool ASOptions::parseOptionContinued(const std::string& arg)
 	{
 		console.setIsDryRun(true);
 	}
+	else if (isOption(arg, "error-on-changes"))
+	{
+		console.setRejectFormatWithDryRun(true);
+	}
 	else if (isOption(arg, "Z", "preserve-date"))
 	{
 		console.setPreserveDate(true);
@@ -3532,6 +3555,10 @@ bool ASOptions::parseOptionContinued(const std::string& arg)
 	else if (isOption(arg, "i", "ignore-exclude-errors"))
 	{
 		console.setIgnoreExcludeErrors(true);
+	}
+	else if (isOption(arg, "accept-empty-list"))
+	{
+		console.setAcceptEmptyInputFileList(true);
 	}
 	else if (isOption(arg, "xi", "ignore-exclude-errors-x"))
 	{
@@ -3571,6 +3598,10 @@ bool ASOptions::parseOptionContinued(const std::string& arg)
 	else if (isOption(arg, "squeeze-ws"))
 	{
 		formatter.setSqueezeWhitespace(true);
+	}
+	else if (isOption(arg, "preserve-ws"))
+	{
+		formatter.setPreserveWhitespace(true);
 	}
 	else if (isOption(arg, "pad-brackets"))
 	{
@@ -3998,9 +4029,9 @@ jstring STDCALL Java_AStyleInterface_AStyleMain(JNIEnv* env,
 
 extern "C"  EXPORT
 jstring STDCALL Java_cc_arduino_packages_formatter_AStyleInterface_AStyleMain(JNIEnv* env,
-                                                jobject obj,
-                                                jstring textInJava,
-                                                jstring optionsJava)
+        jobject obj,
+        jstring textInJava,
+        jstring optionsJava)
 {
 	g_env = env;                                // make object available globally
 	g_obj = obj;                                // make object available globally
